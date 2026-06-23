@@ -1,0 +1,7 @@
+numpy>=1.23
+pandas>=1.5
+yfinance>=0.2
+
+# TA-Lib é OPCIONAL. Se não estiver instalado, features.py usa um cálculo
+# equivalente em pandas (mesmos parâmetros). Para instalar no Windows, baixe o
+# wheel compatível com a sua versão de Python e numpy e rode `pip install`.

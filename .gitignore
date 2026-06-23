@@ -1,0 +1,28 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# --- Ambientes virtuais ---
+.venv/
+venv/
+env/
+
+# --- Artefatos gerados (mantém apenas os CSV em outputs/) ---
+outputs/*
+!outputs/*.csv
+*.log
+
+# --- Artefatos locais ---
+*.tex
+*.pdf
+figuras/
+
+# --- IDE / SO ---
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db

@@ -1,0 +1,19 @@
+[project]
+name = "b3-data-processing"
+version = "1.0.0"
+description = "Pipeline de processamento de dados da B3: coleta, indicadores em forma de forca [-1,1] e tensores supervisionados."
+readme = "README.md"
+requires-python = ">=3.10"
+
+# As dependencias permanecem em requirements.txt (pip install -r requirements.txt).
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
