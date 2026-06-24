@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-"""Coleta de OHLCV da B3 via yfinance, com limpeza e seleção dos ativos."""
+# Coleta de OHLCV da B3 via yfinance, com limpeza e seleção dos ativos
 
 from __future__ import annotations
 import os
