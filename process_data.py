@@ -1,10 +1,4 @@
-# -*- coding: utf-8 -*-
-"""Executa o pipeline de dados e salva um resumo em outputs/.
-
-Coleta -> indicadores em força [-1,1] -> rotulagem em 3 classes -> janelas ->
-tensores. Imprime as dimensões, valida o intervalo [-1,1] e a distribuição das
-classes.
-"""
+#Executa 
 
 from __future__ import annotations
 import json
