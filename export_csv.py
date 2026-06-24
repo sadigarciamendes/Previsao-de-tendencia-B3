@@ -1,10 +1,9 @@
-# -*- coding: utf-8 -*-
-"""Exporta o dataframe processado de um ativo para CSV.
+#Exporta o dataframe processado de um ativo para CSV.
 
-Uso:
-    python export_csv.py            # focus_ticker (PETR4.SA)
-    python export_csv.py VALE3.SA
-"""
+#Uso:
+   # python export_csv.py           
+   # python export_csv.py VALE3.SA
+
 
 from __future__ import annotations
 import argparse
