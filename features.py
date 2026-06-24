@@ -1,7 +1,6 @@
-# -*- coding: utf-8 -*-
-"""Indicadores técnicos como índices de força limitados a [-1, 1].
+#Indicadores técnicos como índices de força limitados a [-1, 1].
 
-Cada indicador é reescrito como uma razão normalizada (diferenças divididas pela
+"""Cada indicador é reescrito como uma razão normalizada (diferenças divididas pela
 soma das grandezas comparadas), o que dispensa qualquer normalizador ajustado.
 Usa TA-Lib quando disponível e um cálculo equivalente em pandas caso contrário.
 """
