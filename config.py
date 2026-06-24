@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-"""Parâmetros do pipeline de processamento de dados da B3."""
+# Parâmetros do pipeline de processamento de dados da B3.
 
 from dataclasses import dataclass, field
 from typing import List
