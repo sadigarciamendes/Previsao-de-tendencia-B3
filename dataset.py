@@ -1,11 +1,3 @@
-# -*- coding: utf-8 -*-
-"""Construção dos tensores supervisionados a partir dos indicadores.
-
-Rotula a tendência em três classes (-1 baixa, 0 neutra, +1 alta), gera janelas
-rolantes por ativo e separa um hold-out cronológico final. As features já estão
-em [-1, 1] por construção, portanto não há normalizador ajustado.
-"""
-
 from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
