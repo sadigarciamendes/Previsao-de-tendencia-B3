@@ -1,22 +1,10 @@
 #Indicadores técnicos como índices de força limitados a [-1, 1].
 
-"""Cada indicador é reescrito como uma razão normalizada (diferenças divididas pela
-soma das grandezas comparadas), o que dispensa qualquer normalizador ajustado.
-Usa TA-Lib quando disponível e um cálculo equivalente em pandas caso contrário.
-"""
-
 from __future__ import annotations
 from typing import Dict, List
 
 import numpy as np
 import pandas as pd
-
-try:
-    import talib  # type: ignore
-    _HAS_TALIB = True
-except Exception:
-    _HAS_TALIB = False
-
 
 INDICATOR_GROUPS: List[str] = ["RSI", "MACD", "MA", "BBANDS", "OBV"]
 
@@ -44,10 +32,7 @@ def _bbands(close: pd.Series, period=20, ndev=2.0):
 
 
 def build_rsi_features(close: pd.Series) -> pd.DataFrame:
-    if _HAS_TALIB:
-        rsi = pd.Series(talib.RSI(close.values, timeperiod=14), index=close.index)
-    else:
-        rsi = _rsi(close, 14)
+    rsi = _rsi(close, 14)
 
     f = pd.DataFrame(index=close.index)
     f["rsi_force"] = (rsi - 50.0) / 50.0
@@ -59,12 +44,8 @@ def build_rsi_features(close: pd.Series) -> pd.DataFrame:
 
 
 def build_macd_features(close: pd.Series) -> pd.DataFrame:
-    if _HAS_TALIB:
-        ema_fast = pd.Series(talib.EMA(close.values, 12), index=close.index)
-        ema_slow = pd.Series(talib.EMA(close.values, 26), index=close.index)
-    else:
-        ema_fast = _ema(close, 12)
-        ema_slow = _ema(close, 26)
+    ema_fast = _ema(close, 12)
+    ema_slow = _ema(close, 26)
 
     macd_force = (ema_fast - ema_slow) / (ema_fast + ema_slow + _EPS)
     signal_force = _ema(macd_force, 9)
@@ -80,16 +61,10 @@ def build_macd_features(close: pd.Series) -> pd.DataFrame:
 
 
 def build_ma_features(close: pd.Series) -> pd.DataFrame:
-    if _HAS_TALIB:
-        sma50 = pd.Series(talib.SMA(close.values, 50), index=close.index)
-        sma200 = pd.Series(talib.SMA(close.values, 200), index=close.index)
-        ema9 = pd.Series(talib.EMA(close.values, 9), index=close.index)
-        ema20 = pd.Series(talib.EMA(close.values, 20), index=close.index)
-    else:
-        sma50 = close.rolling(50).mean()
-        sma200 = close.rolling(200).mean()
-        ema9 = _ema(close, 9)
-        ema20 = _ema(close, 20)
+    sma50 = close.rolling(50).mean()
+    sma200 = close.rolling(200).mean()
+    ema9 = _ema(close, 9)
+    ema20 = _ema(close, 20)
 
     f = pd.DataFrame(index=close.index)
     f["price_sma50_force"] = (close - sma50) / (close + sma50 + _EPS)
@@ -102,14 +77,7 @@ def build_ma_features(close: pd.Series) -> pd.DataFrame:
 
 
 def build_bbands_features(close: pd.Series) -> pd.DataFrame:
-    if _HAS_TALIB:
-        upper, mid, lower = talib.BBANDS(
-            close.values, timeperiod=20, nbdevup=2, nbdevdn=2, matype=0)
-        upper = pd.Series(upper, index=close.index)
-        mid = pd.Series(mid, index=close.index)
-        lower = pd.Series(lower, index=close.index)
-    else:
-        upper, mid, lower = _bbands(close, 20, 2.0)
+    upper, mid, lower = _bbands(close, 20, 2.0)
 
     f = pd.DataFrame(index=close.index)
     f["bb_position"] = ((close - mid) / ((upper - mid) + _EPS)).clip(-1, 1)
@@ -122,10 +90,7 @@ def build_bbands_features(close: pd.Series) -> pd.DataFrame:
 
 
 def build_obv_features(close: pd.Series, volume: pd.Series) -> pd.DataFrame:
-    if _HAS_TALIB:
-        obv = pd.Series(talib.OBV(close.values, volume.values), index=close.index)
-    else:
-        obv = (np.sign(close.diff()).fillna(0.0) * volume).cumsum()
+    obv = (np.sign(close.diff()).fillna(0.0) * volume).cumsum()
 
     obv_ema_s = _ema(obv, 10)
     obv_ema_l = _ema(obv, 30)
@@ -151,7 +116,3 @@ def build_all_features(df: pd.DataFrame) -> Dict[str, pd.DataFrame]:
         "BBANDS": build_bbands_features(close),
         "OBV": build_obv_features(close, volume),
     }
-
-
-def talib_status() -> str:
-    return "TA-Lib ATIVO" if _HAS_TALIB else "TA-Lib ausente -> usando fallback pandas"

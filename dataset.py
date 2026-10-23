@@ -1,6 +1,6 @@
 from __future__ import annotations
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from dataclasses import dataclass
+from typing import Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -10,30 +10,31 @@ from features import build_all_features, INDICATOR_GROUPS
 
 
 @dataclass
-class GroupTensors:
-    """Tensores de um grupo: treino (pool) e hold-out agregado."""
-    X_train: np.ndarray
-    y_train: np.ndarray
-    X_test: np.ndarray
-    y_test: np.ndarray
-    feature_names: List[str]
+class AssetPanel:
+    """Série completa de janelas de um ativo, sem nenhum corte de avaliação.
 
-
-@dataclass
-class GroupCV:
-    """Janelas de treino de um grupo, separadas por ativo e em ordem temporal,
-    para a validação cruzada com avanço temporal."""
-    per_asset: List[Tuple[np.ndarray, np.ndarray]] = field(default_factory=list)
-    feature_names: List[str] = field(default_factory=list)
-
-
-@dataclass
-class HoldoutSlice:
-    """Recorte de hold-out de um ativo: datas, preços, janelas e rótulos."""
+    Cada posição `i` corresponde a uma janela cujo último pregão é `dates[i]`,
+    com preço `close[i]` e rótulo `y[i]`. Os cortes de treino/validação/teste são
+    feitos depois, por fold, em `walkforward.py`.
+    """
+    ticker: str
     dates: pd.DatetimeIndex
     close: np.ndarray
+    y: np.ndarray
     X_by_group: Dict[str, np.ndarray]
-    y_true: np.ndarray
+
+    def __len__(self) -> int:
+        return len(self.y)
+
+    def subset(self, idx: np.ndarray) -> "AssetPanel":
+        """Recorta o painel nas posições `idx` (mantém a ordem temporal)."""
+        return AssetPanel(
+            ticker=self.ticker,
+            dates=self.dates[idx],
+            close=self.close[idx],
+            y=self.y[idx],
+            X_by_group={g: X[idx] for g, X in self.X_by_group.items()},
+        )
 
 
 def make_labels(close: pd.Series, horizon: int, neutral_k: float) -> pd.Series:
@@ -84,92 +85,64 @@ def _make_windows(feat: np.ndarray, target: np.ndarray, window: int,
             np.asarray(pos, dtype=int))
 
 
-def build_supervised(
+def build_panels(
     data: Dict[str, pd.DataFrame],
     cfg=CFG,
-) -> Tuple[Dict[str, GroupTensors], Dict[str, GroupCV],
-           Optional[HoldoutSlice], Dict[str, HoldoutSlice]]:
-    """Gera os tensores por grupo, as janelas de treino por ativo e os hold-outs.
+) -> Tuple[Dict[str, AssetPanel], Dict[str, List[str]]]:
+    """Monta o painel completo de cada ativo e os nomes de feature de cada grupo.
 
-    Retorna (tensors_by_group, cv_by_group, holdout_do_focus, slices_por_ativo).
+    Não há corte de treino/teste aqui: a série de janelas cobre todo o período
+    alinhado. A separação é feita por fold, por data de calendário, em
+    `walkforward.py`.
     """
     window = cfg.data.window_size
     groups = INDICATOR_GROUPS
 
-    aligned: Dict[str, dict] = {}
+    panels: Dict[str, AssetPanel] = {}
+    feat_names: Dict[str, List[str]] = {}
+
     for tk, df in data.items():
         g_al, y_al, close_al, dates = _align_stock(df, cfg.data)
-        n = len(dates)
-        if n <= window + 5:
+        if len(dates) <= window + 5:
             continue
-        split = int(n * (1.0 - cfg.data.holdout_ratio))
-        aligned[tk] = dict(groups=g_al, target=y_al.values,
-                           close=close_al.values, dates=dates, split=split)
 
-    if not aligned:
-        raise RuntimeError("Nenhum ativo com dados suficientes após alinhamento.")
-
-    feat_names: Dict[str, List[str]] = {
-        g: list(next(iter(aligned.values()))["groups"][g].columns) for g in groups
-    }
-
-    pooled: Dict[str, dict] = {g: dict(Xtr=[], ytr=[], Xte=[], yte=[]) for g in groups}
-    cv: Dict[str, GroupCV] = {g: GroupCV(feature_names=feat_names[g]) for g in groups}
-    holdout: Optional[HoldoutSlice] = None
-    slices: Dict[str, HoldoutSlice] = {}
-    focus_ticker = cfg.focus_ticker
-
-    for tk, info in aligned.items():
-        split = info["split"]
-        n = len(info["dates"])
-        target = info["target"]
-        tk_X_by_group: Dict[str, np.ndarray] = {}
-        tk_pos_ref = None
-
+        target = y_al.values
+        X_by_group: Dict[str, np.ndarray] = {}
+        pos_ref = None
         for g in groups:
-            feat = np.nan_to_num(info["groups"][g].values, nan=0.0,
+            if g not in feat_names:
+                feat_names[g] = list(g_al[g].columns)
+            feat = np.nan_to_num(g_al[g].values, nan=0.0,
                                  posinf=0.0, neginf=0.0).astype(np.float32)
-            Xtr, ytr, _ = _make_windows(feat, target, window, 0, split)
-            Xho, yho, pos_ho = _make_windows(feat, target, window, split, n)
+            X, _, pos = _make_windows(feat, target, window, 0, len(dates))
+            X_by_group[g] = X
+            pos_ref = pos
 
-            pooled[g]["Xtr"].append(Xtr); pooled[g]["ytr"].append(ytr)
-            pooled[g]["Xte"].append(Xho); pooled[g]["yte"].append(yho)
-            if len(Xtr) > 0:
-                cv[g].per_asset.append((Xtr, ytr))
+        if pos_ref is None or len(pos_ref) == 0:
+            continue
 
-            tk_X_by_group[g] = Xho
-            tk_pos_ref = pos_ho
-
-        if tk_pos_ref is not None and len(tk_pos_ref) > 0:
-            sl = HoldoutSlice(
-                dates=info["dates"][tk_pos_ref],
-                close=info["close"][tk_pos_ref],
-                X_by_group=tk_X_by_group,
-                y_true=target[tk_pos_ref].astype(np.float32),
-            )
-            slices[tk] = sl
-            if tk == focus_ticker:
-                holdout = sl
-
-    out: Dict[str, GroupTensors] = {}
-    for g in groups:
-        out[g] = GroupTensors(
-            X_train=np.concatenate(pooled[g]["Xtr"]),
-            y_train=np.concatenate(pooled[g]["ytr"]),
-            X_test=np.concatenate(pooled[g]["Xte"]),
-            y_test=np.concatenate(pooled[g]["yte"]),
-            feature_names=feat_names[g],
+        panels[tk] = AssetPanel(
+            ticker=tk,
+            dates=dates[pos_ref],
+            close=close_al.values[pos_ref],
+            y=target[pos_ref].astype(np.float32),
+            X_by_group=X_by_group,
         )
 
-    return out, cv, holdout, slices
+    if not panels:
+        raise RuntimeError("Nenhum ativo com dados suficientes após alinhamento.")
+    return panels, feat_names
 
 
 if __name__ == "__main__":
     from data_collection import load_dataset
     d = load_dataset(CFG)
-    tensors, cv, holdout, slices = build_supervised(d, CFG)
-    for g, t in tensors.items():
-        print(f"{g:7s} | treino={t.X_train.shape} holdout={t.X_test.shape} "
-              f"| ativos={len(cv[g].per_asset)}")
-    if holdout:
-        print(f"Hold-out {CFG.focus_ticker}: {len(holdout.dates)} amostras")
+    panels, feat_names = build_panels(d, CFG)
+    print(f"{len(panels)} ativos com painel montado.")
+    for g, names in feat_names.items():
+        print(f"  {g:7s} {len(names)} features: {', '.join(names)}")
+    p = panels.get(CFG.focus_ticker) or next(iter(panels.values()))
+    print(f"\n{p.ticker}: {len(p)} janelas de "
+          f"{p.dates[0].date()} a {p.dates[-1].date()}")
+    for g, X in p.X_by_group.items():
+        print(f"  {g:7s} {X.shape}")

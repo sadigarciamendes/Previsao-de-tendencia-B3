@@ -1,0 +1,32 @@
+=== Pipeline de dados B3 ===
+[DATA] Cache carregado: 92 ativos (outputs\prices_cache.pkl)
+[DATA] Excluído NATU3.SA: buraco de 2.017 dias (2019-2025, período como NTCO3) e queda de -72% na volta
+[DATA] Excluído PCAR3.SA: preço parado e volume zero em 2016-2020; salto de +139% em 01/02/2017
+[DATA] Excluído UGPA3.SA: salto de +119% em 28/06/2021 (desdobramento mal ajustado)
+[DATA] Excluído SUZB3.SA: preço parado e volume zero em 2016-2017 (limiar tau quase zero em 255 dias)
+[DATA] Excluído TEND3.SA: preço parado e volume zero em 2016-2017 (limiar tau quase zero em 119 dias)
+[DATA] Excluído CPFE3.SA: preço parado em 2017 (limiar tau quase zero em 79 dias)
+[DATA] 86 ativos após exclusões.
+
+Tensores por grupo (série completa, sem corte de avaliação):
+  RSI     (175992, 30, 5) range=[-1.000,1.000] OK
+  MACD    (175992, 30, 5) range=[-1.000,1.000] OK
+  MA      (175992, 30, 6) range=[-1.000,1.000] OK
+  BBANDS  (175992, 30, 4) range=[-1.000,1.000] OK
+  OBV     (175992, 30, 4) range=[-1.000,1.000] OK
+
+Distribuição das classes (-1 baixa, 0 neutra, +1 alta):
+  baixa   = 29.0%
+  neutra  = 38.9%
+  alta    = 32.1%
+
+Validação cruzada com avanço temporal — 5 folds:
+  fold 1: treina até 2019-03-26 | testa 2019-04-09 a 2020-09-25 | treino=21,431 val=3,161 teste=24,956 | 68 ativos
+  fold 2: treina até 2020-09-25 | testa 2020-10-09 a 2022-04-06 | treino=43,845 val=7,067 teste=25,690 | 70 ativos
+  fold 3: treina até 2022-04-06 | testa 2022-04-22 a 2023-10-04 | treino=66,749 val=11,138 teste=26,352 | 72 ativos
+  fold 4: treina até 2023-10-04 | testa 2023-10-19 a 2025-04-09 | treino=94,567 val=15,893 teste=31,562 | 86 ativos
+  fold 5: treina até 2025-04-09 | testa 2025-04-25 a 2026-10-08 | treino=122,077 val=20,719 teste=31,476 | 86 ativos
+
+Ativo de foco PETR4.SA: 2254 janelas (2017-09-20 a 2026-10-08)
+
+Resumo salvo em outputs\resumo_dados.json

@@ -1,7 +1,7 @@
-# Parâmetros do pipeline de processamento de dados da B3.
+#Parâmetros da etapa de coleta, tratamento e normalização dos dados da B3.
 
 from dataclasses import dataclass, field
-from typing import List
+from typing import Dict, List
 
 
 # Universo de ativos da B3 (sufixo .SA do yfinance).
@@ -30,6 +30,16 @@ TICKERS: List[str] = [
 
 FOCUS_TICKER: str = "PETR4.SA"
 
+# Ativos removidos por falha nos dados do yfinance (checagem manual do cache).
+EXCLUDED: Dict[str, str] = {
+    "NATU3.SA": "buraco de 2.017 dias (2019-2025, período como NTCO3) e queda de -72% na volta",
+    "PCAR3.SA": "preço parado e volume zero em 2016-2020; salto de +139% em 01/02/2017",
+    "UGPA3.SA": "salto de +119% em 28/06/2021 (desdobramento mal ajustado)",
+    "SUZB3.SA": "preço parado e volume zero em 2016-2017 (limiar tau quase zero em 255 dias)",
+    "TEND3.SA": "preço parado e volume zero em 2016-2017 (limiar tau quase zero em 119 dias)",
+    "CPFE3.SA": "preço parado em 2017 (limiar tau quase zero em 79 dias)",
+}
+
 
 @dataclass
 class DataConfig:
@@ -38,14 +48,25 @@ class DataConfig:
     forecast_horizon: int = 10
     neutral_k: float = 0.5
     window_size: int = 30
-    holdout_ratio: float = 0.20
     min_history: int = 400
+    auto_adjust: bool = False
+    rounding: bool = True
+    actions: bool = True
+
+
+@dataclass
+class SplitConfig:
+    """Parâmetros da divisão walk-forward (ver `walkforward.py`)."""
+    cv_folds: int = 5            # blocos de teste out-of-sample
+    val_ratio: float = 0.15      # cauda do treino de cada fold usada p/ early stopping
 
 
 @dataclass
 class DataPipelineConfig:
     data: DataConfig = field(default_factory=DataConfig)
+    split: SplitConfig = field(default_factory=SplitConfig)
     tickers: List[str] = field(default_factory=lambda: list(TICKERS))
+    excluded: Dict[str, str] = field(default_factory=lambda: dict(EXCLUDED))
     focus_ticker: str = FOCUS_TICKER
     outputs_dir: str = "outputs"
 

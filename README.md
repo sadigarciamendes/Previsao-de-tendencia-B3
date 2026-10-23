@@ -1,88 +1,94 @@
-# Processamento de Dados da B3 para Modelos de Tendência
+# B3 — coleta, tratamento e normalização dos dados
 
-Pipeline de processamento de dados de ações da B3: baixa o histórico, calcula
-indicadores técnicos em forma de índices de força limitados a `[-1, 1]`, rotula a
-tendência de curto prazo e organiza tudo em tensores de janelas rolantes prontos
-para alimentar uma rede sequencial (ex.: LSTM).
+Etapa de dados de um comitê de redes LSTM para previsão de tendência de ações
+da B3 em horizonte de swing trade (10 pregões). O projeto vai da coleta dos
+preços até os tensores prontos para entrar na rede; não há treino nem
+avaliação aqui.
 
-> Este projeto cobre apenas a etapa de dados. Modelagem, treino e avaliação ficam
-> fora do escopo.
+## Resumo
 
-## Fluxo
+- **Coleta:** OHLCV diário de 100 ativos da B3 via yfinance, 10 anos, preços
+  sem ajuste por proventos (`auto_adjust=False`; o yfinance ainda corrige
+  desdobramentos). Ativos com menos de 400 pregões são descartados.
+- **Features:** 24 indicadores técnicos em 5 grupos, um por especialista do
+  comitê — RSI (5), MACD (5), médias móveis (6), Bandas de Bollinger (4) e
+  OBV/volume (4). Todos ficam em [-1, 1] por construção: diferenças
+  normalizadas (a − b)/(a + b), eventos de cruzamento (±1) e indicadores
+  binários. Não há z-score nem min-max, o que evita vazamento de estatísticas
+  do futuro.
+- **Rótulo:** método de horizonte fixo com limiar dinâmico (López de Prado,
+  2018). O retorno de 10 pregões à frente é comparado a
+  τ = 0,5 · σ₂₀ · √10, onde σ₂₀ é o desvio móvel de 20 retornos diários.
+  Classes: −1 baixa, 0 neutra, +1 alta.
+- **Entrada da rede:** janelas de 30 pregões, com forma
+  `(amostras, 30, n_features)` por grupo.
+- **Validação:** walk-forward com 5 dobras de calendário, iguais para todos os
+  ativos. Os 15% finais do treino de cada dobra servem de validação (early
+  stopping), com vão de 10 janelas entre treino, validação e teste para que o
+  rótulo não enxergue o período seguinte.
 
-```
-config.py
-   |
-   v
-data_collection.py  ->  features.py  ->  dataset.py
- (OHLCV via yfinance)   (indicadores      (rotulagem + janelas
-                         em força [-1,1])   + tensores por grupo)
-```
+## Resultados
 
-Orquestrado por `process_data.py`.
+Download de 23/10/2026 (24/10/2016 a 23/10/2026).
 
-## Componentes
-
-| Módulo | Papel |
+| Métrica | Valor |
 |---|---|
-| `config.py` | Parâmetros (100 tickers, janela=30, horizonte=10, neutral_k=0.5, hold-out=20%, mínimo de 400 pregões). |
-| `data_collection.py` | Baixa 10 anos de candles diários via yfinance (`auto_adjust=False`, `actions=True`, `rounding=True`), com limpeza e seleção. |
-| `features.py` | Indicadores via TA-Lib (com fallback em pandas) reescritos como índices de força em [-1,1]: RSI(14), MACD(12,26,9), SMA(50/200)+EMA(9/20), Bollinger(20,2) e OBV/Volume. |
-| `dataset.py` | Rotulagem em 3 classes (-1=baixa, 0=neutra, +1=alta) com banda neutra escalada pela volatilidade, janela rolante de 30, sem normalizador ajustado, hold-out final por ativo e pooling. |
-| `process_data.py` | Executa o pipeline ponta a ponta e salva um resumo. |
-| `export_csv.py` | Exporta o dataframe processado de um ativo (`close` + 24 atributos + `label` -1/0/+1) para CSV. |
+| Ativos válidos | 86 |
+| Candles | 196.460 |
+| Janelas de 30 pregões | 175.992 |
+| Baixa / neutra / alta | 29,0% / 38,9% / 32,1% |
+| Limiar τ médio / mediano | 3,71% / 3,26% |
 
-## Normalização por construção
+| Dobra | Treina até | Teste | Treino | Val. | Teste | Ativos |
+|---|---|---|---|---|---|---|
+| 1 | 26/03/2019 | 09/04/2019 – 25/09/2020 | 21.431 | 3.161 | 24.956 | 68 |
+| 2 | 25/09/2020 | 09/10/2020 – 06/04/2022 | 43.845 | 7.067 | 25.690 | 70 |
+| 3 | 06/04/2022 | 22/04/2022 – 04/10/2023 | 66.749 | 11.138 | 26.352 | 72 |
+| 4 | 04/10/2023 | 19/10/2023 – 09/04/2025 | 94.567 | 15.893 | 31.562 | 86 |
+| 5 | 09/04/2025 | 25/04/2025 – 08/10/2026 | 122.077 | 20.719 | 31.476 | 86 |
 
-Não há `StandardScaler` nem `MinMaxScaler`. Cada indicador é escrito como um índice
-de força que já nasce em `[-1, 1]`, por exemplo, para médias móveis:
+Dos 100 ativos, 8 não retornaram dados no yfinance (BRFS3, CCRO3, CIEL3,
+CRFB3, GUAR3, JBSS3, PETZ3, STBP3) e 6 foram excluídos por falhas nos dados
+(`config.EXCLUDED`, com o motivo de cada um): NATU3, PCAR3, UGPA3, SUZB3,
+TEND3 e CPFE3.
+
+![Validação walk-forward](outputs/figuras/fig05_walkforward.png)
+
+## Arquivos
+
+| Arquivo | Etapa |
+|---|---|
+| `config.py` | parâmetros: ativos, período, horizonte, janela, dobras e exclusões |
+| `data_collection.py` | download OHLCV via yfinance, limpeza e filtro de histórico mínimo |
+| `features.py` | indicadores transformados em índices de força em [-1, 1] |
+| `dataset.py` | rótulo de 3 classes, alinhamento e janelas de 30 pregões |
+| `walkforward.py` | divisão walk-forward por calendário com vão de 10 janelas |
+| `process_data.py` | executa tudo e salva `outputs/resumo_dados.json` |
+| `export_tensores.py` | tensores prontos para a LSTM, um `.npz` por dobra em `outputs/tensores/` |
+| `visualizacoes.py` | figuras em `outputs/figuras/` |
+
+## Uso
 
 ```
-forca = (media_curta - media_longa) / (media_curta + media_longa)
-```
-
-Isso mantém a entrada estável quando o modelo encontra um período ou um ativo com
-patamar de preço diferente do observado no treino, sem depender de parâmetros
-estimados a partir dos dados de treino.
-
-## Como executar
-
-```bash
-# 1) (recomendado) ambiente virtual
-python -m venv .venv
-.venv\Scripts\activate        # Windows
-# source .venv/bin/activate   # Linux/Mac
-
-# 2) dependências
 pip install -r requirements.txt
-
-# 3) rodar o pipeline de dados
-python process_data.py
-
-# 4) (opcional) exportar o dataframe de um ativo para CSV
-python export_csv.py            # usa o focus_ticker (PETR4.SA)
-python export_csv.py VALE3.SA   # qualquer ticker da B3
+python process_data.py          # pipeline completo + resumo
+python export_tensores.py       # tensores .npz por dobra
+python visualizacoes.py         # figuras (opcional: python visualizacoes.py VALE3.SA)
 ```
 
-O `process_data.py` salva um resumo em `outputs/` com, por grupo de indicador, o
-formato dos tensores de treino e de hold-out, os nomes das features e o intervalo
-observado dos valores (que deve permanecer dentro de `[-1, 1]`).
+A primeira execução baixa os dados e salva `outputs/prices_cache.pkl`; as
+seguintes reutilizam o cache (apague o arquivo para baixar de novo). Como o
+período é relativo à data do download, uma nova coleta pode gerar números
+ligeiramente diferentes dos acima.
 
-## Saída de `build_supervised`
+Cada `foldK.npz` contém `X_{GRUPO}_{train,val,test}` (`float32`,
+`(N, 30, n_features)`), `y_{train,val,test}` (`int8`, −1/0/+1),
+`ticker_*`, `data_*` e `features_{GRUPO}`. Para usar com
+`CrossEntropyLoss` ou `sparse_categorical_crossentropy`, some 1 ao rótulo
+(classes 0, 1, 2).
 
-`build_supervised(data, cfg)` retorna:
+## Limitações
 
-- `tensors_by_group`: por grupo, `X_train/y_train` (pool de treino de todos os
-  ativos) e `X_test/y_test` (hold-out agregado).
-- `cv_by_group`: janelas de treino separadas por ativo, prontas para uma validação
-  cruzada com avanço temporal (walk-forward).
-- `holdout`: recorte de hold-out do ativo de foco (`focus_ticker`).
-- `slices`: recorte de hold-out de cada ativo.
-
-## Notas
-
-- TA-Lib é opcional. Sem ele, `features.py` usa um cálculo equivalente em pandas
-  com os mesmos parâmetros.
-- Os indicadores são calculados sobre o preço de fechamento, sem transformação
-  prévia de escala dos preços, pois a normalização é feita pela própria construção
-  dos índices de força.
+- O universo de ativos é a composição atual da bolsa (viés de sobrevivência).
+- Os preços não são ajustados por dividendos e JCP, então as quedas nas
+  datas-ex aparecem nos indicadores e no rótulo.

@@ -1,0 +1,165 @@
+{
+  "ativos_validos": 86,
+  "ativos_excluidos": {
+    "NATU3.SA": "buraco de 2.017 dias (2019-2025, período como NTCO3) e queda de -72% na volta",
+    "PCAR3.SA": "preço parado e volume zero em 2016-2020; salto de +139% em 01/02/2017",
+    "UGPA3.SA": "salto de +119% em 28/06/2021 (desdobramento mal ajustado)",
+    "SUZB3.SA": "preço parado e volume zero em 2016-2017 (limiar tau quase zero em 255 dias)",
+    "TEND3.SA": "preço parado e volume zero em 2016-2017 (limiar tau quase zero em 119 dias)",
+    "CPFE3.SA": "preço parado em 2017 (limiar tau quase zero em 79 dias)"
+  },
+  "grupos": {
+    "RSI": {
+      "shape": [
+        175992,
+        30,
+        5
+      ],
+      "feature_names": [
+        "rsi_force",
+        "rsi_oversold",
+        "rsi_overbought",
+        "rsi_above50",
+        "rsi_cross50"
+      ],
+      "range": [
+        -1.0,
+        1.0
+      ]
+    },
+    "MACD": {
+      "shape": [
+        175992,
+        30,
+        5
+      ],
+      "feature_names": [
+        "macd_force",
+        "macd_signal_force",
+        "macd_hist",
+        "macd_hist_dir",
+        "macd_cross"
+      ],
+      "range": [
+        -1.0,
+        1.0
+      ]
+    },
+    "MA": {
+      "shape": [
+        175992,
+        30,
+        6
+      ],
+      "feature_names": [
+        "price_sma50_force",
+        "price_sma200_force",
+        "sma_trend_force",
+        "ema_short_force",
+        "golden_death_cross",
+        "ema_cross"
+      ],
+      "range": [
+        -1.0,
+        1.0
+      ]
+    },
+    "BBANDS": {
+      "shape": [
+        175992,
+        30,
+        4
+      ],
+      "feature_names": [
+        "bb_position",
+        "bb_vol_force",
+        "bb_above_upper",
+        "bb_below_lower"
+      ],
+      "range": [
+        -1.0,
+        1.0
+      ]
+    },
+    "OBV": {
+      "shape": [
+        175992,
+        30,
+        4
+      ],
+      "feature_names": [
+        "obv_trend_force",
+        "obv_cross",
+        "vol_force",
+        "vol_high"
+      ],
+      "range": [
+        -1.0,
+        1.0
+      ]
+    }
+  },
+  "distribuicao_classes": {
+    "baixa": 0.2897,
+    "neutra": 0.389,
+    "alta": 0.3213
+  },
+  "folds": [
+    {
+      "fold": 1,
+      "n_ativos": 68,
+      "treina_ate": "2019-03-26",
+      "teste_inicio": "2019-04-09",
+      "teste_fim": "2020-09-25",
+      "n_treino": 21431,
+      "n_validacao": 3161,
+      "n_teste": 24956
+    },
+    {
+      "fold": 2,
+      "n_ativos": 70,
+      "treina_ate": "2020-09-25",
+      "teste_inicio": "2020-10-09",
+      "teste_fim": "2022-04-06",
+      "n_treino": 43845,
+      "n_validacao": 7067,
+      "n_teste": 25690
+    },
+    {
+      "fold": 3,
+      "n_ativos": 72,
+      "treina_ate": "2022-04-06",
+      "teste_inicio": "2022-04-22",
+      "teste_fim": "2023-10-04",
+      "n_treino": 66749,
+      "n_validacao": 11138,
+      "n_teste": 26352
+    },
+    {
+      "fold": 4,
+      "n_ativos": 86,
+      "treina_ate": "2023-10-04",
+      "teste_inicio": "2023-10-19",
+      "teste_fim": "2025-04-09",
+      "n_treino": 94567,
+      "n_validacao": 15893,
+      "n_teste": 31562
+    },
+    {
+      "fold": 5,
+      "n_ativos": 86,
+      "treina_ate": "2025-04-09",
+      "teste_inicio": "2025-04-25",
+      "teste_fim": "2026-10-08",
+      "n_treino": 122077,
+      "n_validacao": 20719,
+      "n_teste": 31476
+    }
+  ],
+  "ativo_foco": {
+    "ticker": "PETR4.SA",
+    "janelas": 2254,
+    "inicio": "2017-09-20",
+    "fim": "2026-10-08"
+  }
+}

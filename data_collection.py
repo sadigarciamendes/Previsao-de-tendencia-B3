@@ -1,4 +1,5 @@
-# Coleta de OHLCV da B3 via yfinance, com limpeza e seleção dos ativos
+#Coleta de OHLCV da B3 via yfinance, com limpeza e seleção dos ativos
+
 
 from __future__ import annotations
 import os
@@ -20,10 +21,7 @@ OHLCV = ["Open", "High", "Low", "Close", "Volume"]
 
 
 def download_prices(tickers: List[str], cfg: DataConfig) -> Dict[str, pd.DataFrame]:
-    """Baixa os candles diários de cada ticker e retorna {ticker: DataFrame OHLCV}.
 
-    Ativos sem dados ou com histórico menor que `min_history` são descartados.
-    """
     period = f"{cfg.period_years}y"
     raw: Dict[str, pd.DataFrame] = {}
     max_retries = 4
@@ -38,7 +36,8 @@ def download_prices(tickers: List[str], cfg: DataConfig) -> Dict[str, pd.DataFra
             try:
                 df = yf.download(
                     tk, period=period, interval=cfg.interval,
-                    auto_adjust=False, actions=True, rounding=True,
+                    auto_adjust=cfg.auto_adjust, actions=cfg.actions,
+                    rounding=cfg.rounding,
                     progress=False, threads=False,
                 )
             except Exception as exc:
@@ -71,10 +70,26 @@ def download_prices(tickers: List[str], cfg: DataConfig) -> Dict[str, pd.DataFra
     return raw
 
 
-def load_dataset(cfg=CFG) -> Dict[str, pd.DataFrame]:
-    """Baixa e limpa todos os tickers configurados."""
+def load_dataset(cfg=CFG, use_cache: bool = True) -> Dict[str, pd.DataFrame]:
+
     os.makedirs(cfg.outputs_dir, exist_ok=True)
-    return download_prices(cfg.tickers, cfg.data)
+    cache_path = os.path.join(cfg.outputs_dir, "prices_cache.pkl")
+
+    if use_cache and os.path.exists(cache_path):
+        data = pd.read_pickle(cache_path)
+        print(f"[DATA] Cache carregado: {len(data)} ativos ({cache_path})")
+    else:
+        data = download_prices(cfg.tickers, cfg.data)
+        pd.to_pickle(data, cache_path)
+        print(f"[DATA] Cache salvo em {cache_path}")
+
+    # O cache guarda tudo o que foi baixado; a exclusão é aplicada na leitura.
+    removidos = [tk for tk in cfg.excluded if tk in data]
+    data = {tk: df for tk, df in data.items() if tk not in cfg.excluded}
+    for tk in removidos:
+        print(f"[DATA] Excluído {tk}: {cfg.excluded[tk]}")
+    print(f"[DATA] {len(data)} ativos após exclusões.")
+    return data
 
 
 if __name__ == "__main__":
