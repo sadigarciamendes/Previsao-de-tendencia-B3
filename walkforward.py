@@ -1,27 +1,3 @@
-#Validação cruzada com avanço temporal (walk-forward) — o único protocolo de
-#avaliação do projeto.
-#
-#Não existe hold-out separado. A linha do tempo comum a todos os ativos é
-#dividida em k+1 blocos de calendário; no fold f o modelo treina em tudo que veio
-#antes da fronteira f, faz early stopping na cauda desse treino e é medido no
-#bloco seguinte, que ele nunca viu:
-#
-#    fold 1  |=treino=|v|  gap  |==teste==|
-#    fold 2  |====treino====|v| gap |==teste==|
-#    fold 3  |=======treino=======|v| gap |==teste==|
-#
-#  v   = fatia de validação interna (`val_ratio`), usada só para early stopping
-#  gap = `forecast_horizon` janelas descartadas, para que o rótulo do fim do
-#        treino (que olha para frente) não enxergue o começo do teste
-#
-#As fronteiras são datas de calendário, iguais para todos os ativos, e não
-#frações do histórico de cada um: sem isso, ativos com históricos de tamanhos
-#diferentes cairiam em anos diferentes no mesmo fold, e o modelo poderia treinar
-#com 2020 de um ativo enquanto testa 2020 de outro.
-#
-#Concatenando os blocos de teste dos k folds obtém-se, para cada ativo, uma série
-#contínua de previsões fora da amostra cobrindo k/(k+1) do histórico.
-
 from __future__ import annotations
 
 from dataclasses import dataclass, field
